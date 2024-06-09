@@ -1,5 +1,5 @@
-flask==2.0.1
-boto3==1.17.49
-ultralytics==8.0.20
-opencv-python==4.5.3.56
-numpy==1.21.0
+flask>=2.0.1
+boto3>=1.17.49
+opencv-python>=4.5.3.56
+numpy>=1.21.0
+git+https://github.com/ultralytics/ultralytics.git@main
