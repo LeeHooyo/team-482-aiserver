@@ -198,6 +198,9 @@ def process_video(video_key, spf_key):
 @app.route('/process_videos', methods=['POST'])
 def process_videos():
     video_keys = request.json.get('video_keys')  # S3 비디오 파일 키 목록
+    if not video_keys:
+        return jsonify({"error": "No video keys provided"}), 400
+
     video_keys_map = ['spfA', 'spfB', 'spfC', 'spfD', 'spfE', 'spfF']
 
     with ThreadPoolExecutor(max_workers=len(video_keys)) as executor:
