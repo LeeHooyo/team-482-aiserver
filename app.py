@@ -16,28 +16,55 @@ s3_client = boto3.client('s3')
 BUCKET_NAME = 'team486-cctvvideo'
 
 spf_values = {
-    "spfA": None,
-    "spfB": None,
-    "spfC": None,
-    "spfD": None,
-    "spfE": None,
-    "spfF": None
-}
-
-accident_status = {
-    "A": {"isAccident": False, "accidentType": None},
-    "B": {"isAccident": False, "accidentType": None},
-    "C": {"isAccident": False, "accidentType": None},
-    "D": {"isAccident": False, "accidentType": None},
-    "E": {"isAccident": False, "accidentType": None},
-    "F": {"isAccident": False, "accidentType": None}
+    "spfA": {
+        "radius": 0.2,
+        "LEFT": {"congestion": 0, "isAccident": False, "accidentType": None},
+        "RIGHT": {"congestion": 0, "isAccident": False, "accidentType": None},
+        "UP": {"congestion": 0, "isAccident": False, "accidentType": None},
+        "DOWN": {"congestion": 0, "isAccident": False, "accidentType": None}
+    },
+    "spfB": {
+        "radius": 0.2,
+        "LEFT": {"congestion": 0, "isAccident": False, "accidentType": None},
+        "RIGHT": {"congestion": 0, "isAccident": False, "accidentType": None},
+        "UP": {"congestion": 0, "isAccident": False, "accidentType": None},
+        "DOWN": {"congestion": 0, "isAccident": False, "accidentType": None}
+    },
+    "spfC": {
+        "radius": 0.2,
+        "LEFT": {"congestion": 0, "isAccident": False, "accidentType": None},
+        "RIGHT": {"congestion": 0, "isAccident": False, "accidentType": None},
+        "UP": {"congestion": 0, "isAccident": False, "accidentType": None},
+        "DOWN": {"congestion": 0, "isAccident": False, "accidentType": None}
+    },
+    "spfD": {
+        "radius": 0.2,
+        "LEFT": {"congestion": 0, "isAccident": False, "accidentType": None},
+        "RIGHT": {"congestion": 0, "isAccident": False, "accidentType": None},
+        "UP": {"congestion": 0, "isAccident": False, "accidentType": None},
+        "DOWN": {"congestion": 0, "isAccident": False, "accidentType": None}
+    },
+    "spfE": {
+        "radius": 0.2,
+        "LEFT": {"congestion": 0, "isAccident": False, "accidentType": None},
+        "RIGHT": {"congestion": 0, "isAccident": False, "accidentType": None},
+        "UP": {"congestion": 0, "isAccident": False, "accidentType": None},
+        "DOWN": {"congestion": 0, "isAccident": False, "accidentType": None}
+    },
+    "spfF": {
+        "radius": 0.2,
+        "LEFT": {"congestion": 0, "isAccident": False, "accidentType": None},
+        "RIGHT": {"congestion": 0, "isAccident": False, "accidentType": None},
+        "UP": {"congestion": 0, "isAccident": False, "accidentType": None},
+        "DOWN": {"congestion": 0, "isAccident": False, "accidentType": None}
+    }
 }
 
 accident_videos = {
-    "crash1.mp4": "CAR_TO_CAR LEFT_TO_RIGHT",
-    "crash2.mp4": "CAR_TO_CAR UP_TO_DOWN",
-    "crash3.mp4": "CAR_TO_OBJECT LEFT_TO_RIGHT",
-    "crash4.mp4": "CAR_TO_OBJECT UP_TO_DOWN"
+    "crash1.mp4": "CAR_TO_CAR",
+    "crash2.mp4": "CAR_TO_CAR",
+    "crash3.mp4": "CAR_TO_HUMAN",
+    "crash4.mp4": "CAR_TO_HUMAN"
 }
 
 # Safety Performance Function (SPF)
@@ -53,9 +80,9 @@ def normalize_spf(spf_value, spf_min=0, spf_max=calculate_spf(50 * 86400), targe
     normalized_value = (spf_value - spf_min) / (spf_max - spf_min) * (target_max - target_min) + target_min
     return normalized_value
 
-def reset_accident_flags(key):
-    accident_status[key]["isAccident"] = False
-    accident_status[key]["accidentType"] = None
+def reset_accident_flags(spf_key, dir_key):
+    spf_values[spf_key][dir_key]["isAccident"] = False
+    spf_values[spf_key][dir_key]["accidentType"] = None
 
 def download_video_from_s3(video_key):
     local_path = f"/tmp/{os.path.basename(video_key)}"
@@ -76,10 +103,8 @@ def process_video(video_key, spf_key):
         target_classes = ["car", "truck", "bicycle", "motorcycle", "bus"]
 
         total_vehicles = 0
-        up_dir_vehicles = 0
-        left_dir_vehicles = 0
-        previous_up_dir_vehicles = 0
-        previous_left_dir_vehicles = 0
+        dir_vehicles = {"LEFT": 0, "RIGHT": 0, "UP": 0, "DOWN": 0}
+        previous_dir_vehicles = {"LEFT": 0, "RIGHT": 0, "UP": 0, "DOWN": 0}
         start_time = time.time()
         current_frame = 0
 
@@ -95,9 +120,10 @@ def process_video(video_key, spf_key):
 
             if accident_start_frame and current_frame == accident_start_frame:
                 accident_occurred = True
-                road_key = spf_key.replace('spf', '')
-                accident_status[road_key]["isAccident"] = True
-                accident_status[road_key]["accidentType"] = accident_videos[accident_video]
+                accident_type = accident_videos[accident_video]
+                dir_key = random.choice(["LEFT", "RIGHT", "UP", "DOWN"])
+                spf_values[spf_key][dir_key]["isAccident"] = True
+                spf_values[spf_key][dir_key]["accidentType"] = accident_type
 
                 cap.release()
                 accident_cap = cv2.VideoCapture(os.path.join(os.getcwd(), accident_video))
@@ -114,14 +140,17 @@ def process_video(video_key, spf_key):
                             class_name = model.names[class_id]
                             if class_name in target_classes:
                                 total_vehicles += 1
-                                # Assume crash video has vehicles spread naturally between up and left directions
-                                if box[1] < frame_height / 2:  # Up direction
-                                    up_dir_vehicles += 1
-                                else:  # Left direction
-                                    left_dir_vehicles += 1
+                                if box[0] < frame_width / 2:
+                                    dir_vehicles["LEFT"] += 1
+                                else:
+                                    dir_vehicles["RIGHT"] += 1
+                                if box[1] < frame_height / 2:
+                                    dir_vehicles["UP"] += 1
+                                else:
+                                    dir_vehicles["DOWN"] += 1
 
                 accident_cap.release()
-                Timer(180, reset_accident_flags, [road_key]).start()
+                Timer(180, reset_accident_flags, [spf_key, dir_key]).start()
 
             if not accident_occurred:
                 results = model(frame)
@@ -133,43 +162,35 @@ def process_video(video_key, spf_key):
                         class_name = model.names[class_id]
                         if class_name in target_classes:
                             total_vehicles += 1
-                            # Check if the vehicle is in the Up-Dir or Left-Dir based on y-coordinate
-                            if box[1] < frame_height / 2:  # Up direction
-                                up_dir_vehicles += 1
-                            else:  # Left direction
-                                left_dir_vehicles += 1
+                            if box[0] < frame_width / 2:
+                                dir_vehicles["LEFT"] += 1
+                            else:
+                                dir_vehicles["RIGHT"] += 1
+                            if box[1] < frame_height / 2:
+                                dir_vehicles["UP"] += 1
+                            else:
+                                dir_vehicles["DOWN"] += 1
 
             current_frame += 1
 
             current_time = time.time()
             if current_time - start_time >= 5:  # 5초마다 한번씩 SPF 계산
-                # Adjust up_dir and left_dir to ensure natural changes
-                if up_dir_vehicles > previous_up_dir_vehicles:
-                    up_dir_vehicles = min(up_dir_vehicles, previous_up_dir_vehicles + 5)  # limit increase to 5
-                else:
-                    up_dir_vehicles = max(up_dir_vehicles, previous_up_dir_vehicles - 5)  # limit decrease to 5
+                for dir_key in ["LEFT", "RIGHT", "UP", "DOWN"]:
+                    # Adjust dir vehicles to ensure natural changes
+                    if dir_vehicles[dir_key] > previous_dir_vehicles[dir_key]:
+                        dir_vehicles[dir_key] = min(dir_vehicles[dir_key], previous_dir_vehicles[dir_key] + 5)  # limit increase to 5
+                    else:
+                        dir_vehicles[dir_key] = max(dir_vehicles[dir_key], previous_dir_vehicles[dir_key] - 5)  # limit decrease to 5
 
-                if left_dir_vehicles > previous_left_dir_vehicles:
-                    left_dir_vehicles = min(left_dir_vehicles, previous_left_dir_vehicles + 5)  # limit increase to 5
-                else:
-                    left_dir_vehicles = max(left_dir_vehicles, previous_left_dir_vehicles - 5)  # limit decrease to 5
+                    aadt = (total_vehicles / (current_time - start_time)) * 86400  # 일일 평균 교통량 계산
+                    spf_value = calculate_spf(aadt)
+                    normalized_spf_value = normalize_spf(spf_value, spf_min=0, spf_max=calculate_spf(50 * 86400))
+                    spf_values[spf_key][dir_key]["congestion"] = normalized_spf_value
 
-                aadt = (total_vehicles / (current_time - start_time)) * 86400  # 일일 평균 교통량 계산
-                spf_value = calculate_spf(aadt)
+                    previous_dir_vehicles[dir_key] = dir_vehicles[dir_key]
 
-                normalized_spf_value = normalize_spf(spf_value, spf_min=0, spf_max=calculate_spf(50 * 86400))
-
-                spf_values[spf_key] = {
-                    "congestion": normalized_spf_value,
-                    "up_dir": up_dir_vehicles,
-                    "left_dir": left_dir_vehicles
-                }
-
-                previous_up_dir_vehicles = up_dir_vehicles
-                previous_left_dir_vehicles = left_dir_vehicles
                 total_vehicles = 0
-                up_dir_vehicles = 0
-                left_dir_vehicles = 0
+                dir_vehicles = {"LEFT": 0, "RIGHT": 0, "UP": 0, "DOWN": 0}
                 start_time = current_time
 
         cap.release()
@@ -195,17 +216,17 @@ def process_videos():
 
 @app.route('/get_spf', methods=['GET'])
 def get_spf():
-    data = {}
-    for key in spf_values.keys():
-        road_key = key.replace('spf', '')
-        data[key] = {
-            "congestion": spf_values[key]["congestion"],
-            "up_dir": spf_values[key]["up_dir"],
-            "left_dir": spf_values[key]["left_dir"],
-            "radius": 1.8 if road_key != 'A' else 1.6,
-            "isAccident": accident_status[road_key]["isAccident"],
-            "accidentType": accident_status[road_key]["accidentType"]
+    data = []
+    for spf_key, spf_value in spf_values.items():
+        spf_data = {
+            "id": spf_key,
+            "radius": spf_value["radius"],
+            "LEFT": spf_value["LEFT"],
+            "RIGHT": spf_value["RIGHT"],
+            "UP": spf_value["UP"],
+            "DOWN": spf_value["DOWN"]
         }
+        data.append(spf_data)
     return jsonify(data)
 
 if __name__ == '__main__':
