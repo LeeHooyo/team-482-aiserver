@@ -14,50 +14,62 @@ spf_values = {
     "spfA": {
         "radius": 0.2,
         "congestion": 0,
-        "LEFT": {"numofcar": 0, "isAccident": False, "accidentType": None},
-        "RIGHT": {"numofcar": 0, "isAccident": False, "accidentType": None},
-        "UP": {"numofcar": 0, "isAccident": False, "accidentType": None},
-        "DOWN": {"numofcar": 0, "isAccident": False, "accidentType": None}
+        "directions": {
+            "LEFT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+            "RIGHT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+            "UP": {"numofcar": 0, "isAccident": False, "accidentType": None},
+            "DOWN": {"numofcar": 0, "isAccident": False, "accidentType": None}
+        }
     },
     "spfB": {
         "radius": 0.2,
         "congestion": 0,
-        "LEFT": {"numofcar": 0, "isAccident": False, "accidentType": None},
-        "RIGHT": {"numofcar": 0, "isAccident": False, "accidentType": None},
-        "UP": {"numofcar": 0, "isAccident": False, "accidentType": None},
-        "DOWN": {"numofcar": 0, "isAccident": False, "accidentType": None}
+        "directions": {
+            "LEFT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+            "RIGHT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+            "UP": {"numofcar": 0, "isAccident": False, "accidentType": None},
+            "DOWN": {"numofcar": 0, "isAccident": False, "accidentType": None}
+        }
     },
     "spfC": {
         "radius": 0.2,
         "congestion": 0,
-        "LEFT": {"numofcar": 0, "isAccident": False, "accidentType": None},
-        "RIGHT": {"numofcar": 0, "isAccident": False, "accidentType": None},
-        "UP": {"numofcar": 0, "isAccident": False, "accidentType": None},
-        "DOWN": {"numofcar": 0, "isAccident": False, "accidentType": None}
+        "directions": {
+            "LEFT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+            "RIGHT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+            "UP": {"numofcar": 0, "isAccident": False, "accidentType": None},
+            "DOWN": {"numofcar": 0, "isAccident": False, "accidentType": None}
+        }
     },
     "spfD": {
         "radius": 0.2,
         "congestion": 0,
-        "LEFT": {"numofcar": 0, "isAccident": False, "accidentType": None},
-        "RIGHT": {"numofcar": 0, "isAccident": False, "accidentType": None},
-        "UP": {"numofcar": 0, "isAccident": False, "accidentType": None},
-        "DOWN": {"numofcar": 0, "isAccident": False, "accidentType": None}
+        "directions": {
+            "LEFT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+            "RIGHT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+            "UP": {"numofcar": 0, "isAccident": False, "accidentType": None},
+            "DOWN": {"numofcar": 0, "isAccident": False, "accidentType": None}
+        }
     },
     "spfE": {
         "radius": 0.2,
         "congestion": 0,
-        "LEFT": {"numofcar": 0, "isAccident": False, "accidentType": None},
-        "RIGHT": {"numofcar": 0, "isAccident": False, "accidentType": None},
-        "UP": {"numofcar": 0, "isAccident": False, "accidentType": None},
-        "DOWN": {"numofcar": 0, "isAccident": False, "accidentType": None}
+        "directions": {
+            "LEFT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+            "RIGHT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+            "UP": {"numofcar": 0, "isAccident": False, "accidentType": None},
+            "DOWN": {"numofcar": 0, "isAccident": False, "accidentType": None}
+        }
     },
     "spfF": {
         "radius": 0.2,
         "congestion": 0,
-        "LEFT": {"numofcar": 0, "isAccident": False, "accidentType": None},
-        "RIGHT": {"numofcar": 0, "isAccident": False, "accidentType": None},
-        "UP": {"numofcar": 0, "isAccident": False, "accidentType": None},
-        "DOWN": {"numofcar": 0, "isAccident": False, "accidentType": None}
+        "directions": {
+            "LEFT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+            "RIGHT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+            "UP": {"numofcar": 0, "isAccident": False, "accidentType": None},
+            "DOWN": {"numofcar": 0, "isAccident": False, "accidentType": None}
+        }
     }
 }
 
@@ -84,8 +96,8 @@ def normalize_spf(spf_value, spf_min=0, spf_max=calculate_spf(50 * 86400), targe
     return normalized_value
 
 def reset_accident_flags(spf_key, dir_key):
-    spf_values[spf_key][dir_key]["isAccident"] = False
-    spf_values[spf_key][dir_key]["accidentType"] = None
+    spf_values[spf_key]["directions"][dir_key]["isAccident"] = False
+    spf_values[spf_key]["directions"][dir_key]["accidentType"] = None
 
 def process_video(video_name, spf_key):
     local_video_path = video_name
@@ -120,8 +132,8 @@ def process_video(video_name, spf_key):
                 accident_occurred = True
                 accident_type = accident_videos[accident_video]
                 dir_key = random.choice(["LEFT", "RIGHT", "UP", "DOWN"])
-                spf_values[spf_key][dir_key]["isAccident"] = True
-                spf_values[spf_key][dir_key]["accidentType"] = accident_type
+                spf_values[spf_key]["directions"][dir_key]["isAccident"] = True
+                spf_values[spf_key]["directions"][dir_key]["accidentType"] = accident_type
 
                 cap.release()
                 accident_cap = cv2.VideoCapture(accident_video)
@@ -177,19 +189,26 @@ def process_video(video_name, spf_key):
 
             current_time = time.time()
             if current_time - start_time >= 5:  # 5초마다 한번씩 SPF 계산
-                for dir_key in ["LEFT", "RIGHT", "UP", "DOWN"]:
-                    if dir_vehicles[dir_key] > previous_dir_vehicles[dir_key]:
-                        dir_vehicles[dir_key] = min(dir_vehicles[dir_key], previous_dir_vehicles[dir_key] + 5)
-                    else:
-                        dir_vehicles[dir_key] = max(dir_vehicles[dir_key], previous_dir_vehicles[dir_key] - 5)
-
                 aadt = (total_vehicles / (current_time - start_time)) * 86400  # 일일 평균 교통량 계산
                 spf_value = calculate_spf(aadt)
                 normalized_spf_value = normalize_spf(spf_value, spf_min=0, spf_max=calculate_spf(50 * 86400))
                 spf_values[spf_key]["congestion"] = normalized_spf_value
 
+                # 각 방향으로 차량 수 나누기
+                total_num_of_cars = total_vehicles
+                dir_vehicles_list = list(dir_vehicles.keys())
+
+                # 차량 수를 자연스럽게 나누기
+                remaining_cars = total_num_of_cars
+                for dir_key in dir_vehicles_list[:-1]:
+                    allocated_cars = int(total_num_of_cars * random.uniform(0.1, 0.3))
+                    dir_vehicles[dir_key] = allocated_cars
+                    remaining_cars -= allocated_cars
+
+                dir_vehicles[dir_vehicles_list[-1]] = remaining_cars
+
                 for dir_key in dir_vehicles:
-                    spf_values[spf_key][dir_key]["numofcar"] = dir_vehicles[dir_key]
+                    spf_values[spf_key]["directions"][dir_key]["numofcar"] = dir_vehicles[dir_key]
                     previous_dir_vehicles[dir_key] = dir_vehicles[dir_key]
 
                 total_vehicles = 0
@@ -225,10 +244,12 @@ def get_spf():
             "id": spf_key,
             "radius": spf_value["radius"],
             "congestion": spf_value["congestion"],
-            "LEFT": spf_value["LEFT"],
-            "RIGHT": spf_value["RIGHT"],
-            "UP": spf_value["UP"],
-            "DOWN": spf_value["DOWN"]
+            "directions": [
+                {"dir": "LEFT", "numofcar": spf_value["directions"]["LEFT"]["numofcar"], "isAccident": spf_value["directions"]["LEFT"]["isAccident"], "accidentType": spf_value["directions"]["LEFT"]["accidentType"]},
+                {"dir": "RIGHT", "numofcar": spf_value["directions"]["RIGHT"]["numofcar"], "isAccident": spf_value["directions"]["RIGHT"]["isAccident"], "accidentType": spf_value["directions"]["RIGHT"]["accidentType"]},
+                {"dir": "UP", "numofcar": spf_value["directions"]["UP"]["numofcar"], "isAccident": spf_value["directions"]["UP"]["isAccident"], "accidentType": spf_value["directions"]["UP"]["accidentType"]},
+                {"dir": "DOWN", "numofcar": spf_value["directions"]["DOWN"]["numofcar"], "isAccident": spf_value["directions"]["DOWN"]["isAccident"], "accidentType": spf_value["directions"]["DOWN"]["accidentType"]}
+            ]
         }
         data.append(spf_data)
     return jsonify(data)
