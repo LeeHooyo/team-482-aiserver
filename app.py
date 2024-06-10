@@ -7,7 +7,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import random
 from threading import Timer
-
 from deep_sort_realtime.deepsort_tracker import DeepSort
 
 app = Flask(__name__)
