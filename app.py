@@ -152,6 +152,7 @@ def process_video(video_name, spf_key):
 
             if not accident_occurred:
                 results = model(frame)
+                current_frame_vehicles = set()
                 for result in results:
                     boxes = result.boxes.xyxy.cpu().numpy()
                     class_ids_detected = result.boxes.cls.cpu().numpy()
@@ -159,21 +160,23 @@ def process_video(video_name, spf_key):
                         class_id = int(class_ids_detected[i])
                         class_name = model.names[class_id]
                         if class_name in target_classes:
-                            total_vehicles += 1
-                            if box[0] < frame_width / 2:
-                                dir_vehicles["LEFT"] += 1
-                            else:
-                                dir_vehicles["RIGHT"] += 1
-                            if box[1] < frame_height / 2:
-                                dir_vehicles["UP"] += 1
-                            else:
-                                dir_vehicles["DOWN"] += 1
+                            vehicle_id = (box[0], box[1], box[2], box[3])  # 차량의 위치로 고유 ID 생성
+                            if vehicle_id not in current_frame_vehicles:
+                                current_frame_vehicles.add(vehicle_id)
+                                total_vehicles += 1
+                                if box[0] < frame_width / 2:
+                                    dir_vehicles["LEFT"] += 1
+                                else:
+                                    dir_vehicles["RIGHT"] += 1
+                                if box[1] < frame_height / 2:
+                                    dir_vehicles["UP"] += 1
+                                else:
+                                    dir_vehicles["DOWN"] += 1
 
             current_frame += 1
 
             current_time = time.time()
             if current_time - start_time >= 5:  # 5초마다 한번씩 SPF 계산
-                # 자연스러운 변화
                 for dir_key in ["LEFT", "RIGHT", "UP", "DOWN"]:
                     if dir_vehicles[dir_key] > previous_dir_vehicles[dir_key]:
                         dir_vehicles[dir_key] = min(dir_vehicles[dir_key], previous_dir_vehicles[dir_key] + 5)
@@ -184,19 +187,6 @@ def process_video(video_name, spf_key):
                 spf_value = calculate_spf(aadt)
                 normalized_spf_value = normalize_spf(spf_value, spf_min=0, spf_max=calculate_spf(50 * 86400))
                 spf_values[spf_key]["congestion"] = normalized_spf_value
-
-                # 각 방향으로 차량 수 나누기
-                total_num_of_cars = total_vehicles
-                dir_vehicles_list = list(dir_vehicles.keys())
-                random.shuffle(dir_vehicles_list)
-
-                remaining_cars = total_num_of_cars
-                for dir_key in dir_vehicles_list[:-1]:
-                    allocated_cars = random.randint(0, remaining_cars)
-                    dir_vehicles[dir_key] = allocated_cars
-                    remaining_cars -= allocated_cars
-
-                dir_vehicles[dir_vehicles_list[-1]] = remaining_cars
 
                 for dir_key in dir_vehicles:
                     spf_values[spf_key][dir_key]["numofcar"] = dir_vehicles[dir_key]
