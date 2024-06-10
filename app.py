@@ -7,52 +7,57 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import random
 from threading import Timer
-import boto3
 
 app = Flask(__name__)
 
 spf_values = {
     "spfA": {
         "radius": 0.2,
-        "LEFT": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "RIGHT": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "UP": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "DOWN": {"congestion": 0, "isAccident": False, "accidentType": None}
+        "congestion": 0,
+        "LEFT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "RIGHT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "UP": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "DOWN": {"numofcar": 0, "isAccident": False, "accidentType": None}
     },
     "spfB": {
         "radius": 0.2,
-        "LEFT": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "RIGHT": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "UP": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "DOWN": {"congestion": 0, "isAccident": False, "accidentType": None}
+        "congestion": 0,
+        "LEFT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "RIGHT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "UP": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "DOWN": {"numofcar": 0, "isAccident": False, "accidentType": None}
     },
     "spfC": {
         "radius": 0.2,
-        "LEFT": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "RIGHT": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "UP": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "DOWN": {"congestion": 0, "isAccident": False, "accidentType": None}
+        "congestion": 0,
+        "LEFT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "RIGHT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "UP": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "DOWN": {"numofcar": 0, "isAccident": False, "accidentType": None}
     },
     "spfD": {
         "radius": 0.2,
-        "LEFT": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "RIGHT": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "UP": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "DOWN": {"congestion": 0, "isAccident": False, "accidentType": None}
+        "congestion": 0,
+        "LEFT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "RIGHT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "UP": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "DOWN": {"numofcar": 0, "isAccident": False, "accidentType": None}
     },
     "spfE": {
         "radius": 0.2,
-        "LEFT": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "RIGHT": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "UP": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "DOWN": {"congestion": 0, "isAccident": False, "accidentType": None}
+        "congestion": 0,
+        "LEFT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "RIGHT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "UP": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "DOWN": {"numofcar": 0, "isAccident": False, "accidentType": None}
     },
     "spfF": {
         "radius": 0.2,
-        "LEFT": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "RIGHT": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "UP": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "DOWN": {"congestion": 0, "isAccident": False, "accidentType": None}
+        "congestion": 0,
+        "LEFT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "RIGHT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "UP": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "DOWN": {"numofcar": 0, "isAccident": False, "accidentType": None}
     }
 }
 
@@ -63,16 +68,13 @@ accident_videos = {
     "crash4.mp4": "CAR_TO_HUMAN"
 }
 
-# 모델 파일 경로
-model_path = 'yolov8l.pt'
+model_path = "yolov8l.pt"
 
-# Safety Performance Function (SPF)
 def calculate_spf(aadt):
     A = 0.001
     B = 0.5
     return A * (aadt ** B)
 
-# SPF 값을 0에서 50 사이로 변환하는 함수
 def normalize_spf(spf_value, spf_min=0, spf_max=calculate_spf(50 * 86400), target_min=0, target_max=50):
     if spf_max == spf_min:
         return target_min
@@ -169,19 +171,24 @@ def process_video(video_name, spf_key):
 
             current_time = time.time()
             if current_time - start_time >= 5:  # 5초마다 한번씩 SPF 계산
-                for dir_key in ["LEFT", "RIGHT", "UP", "DOWN"]:
-                    # Adjust dir vehicles to ensure natural changes
-                    if dir_vehicles[dir_key] > previous_dir_vehicles[dir_key]:
-                        dir_vehicles[dir_key] = min(dir_vehicles[dir_key], previous_dir_vehicles[dir_key] + 5)  # limit increase to 5
+                total_aadt = (total_vehicles / (current_time - start_time)) * 86400  # 일일 평균 교통량 계산
+                spf_value = calculate_spf(total_aadt)
+                normalized_spf_value = normalize_spf(spf_value, spf_min=0, spf_max=calculate_spf(50 * 86400))
+                spf_values[spf_key]["congestion"] = normalized_spf_value
+
+                # Adjust dir vehicles to ensure natural changes and distribute total vehicles
+                total_numofcar = total_vehicles
+                remaining_vehicles = total_numofcar
+                dir_keys = ["LEFT", "RIGHT", "UP", "DOWN"]
+                
+                for dir_key in dir_keys:
+                    if dir_key == dir_keys[-1]:
+                        # Allocate all remaining vehicles to the last direction to ensure the sum matches total_vehicles
+                        spf_values[spf_key][dir_key]["numofcar"] = remaining_vehicles
                     else:
-                        dir_vehicles[dir_key] = max(dir_vehicles[dir_key], previous_dir_vehicles[dir_key] - 5)  # limit decrease to 5
-
-                    aadt = (total_vehicles / (current_time - start_time)) * 86400  # 일일 평균 교통량 계산
-                    spf_value = calculate_spf(aadt)
-                    normalized_spf_value = normalize_spf(spf_value, spf_min=0, spf_max=calculate_spf(50 * 86400))
-                    spf_values[spf_key][dir_key]["congestion"] = normalized_spf_value
-
-                    previous_dir_vehicles[dir_key] = dir_vehicles[dir_key]
+                        # Distribute vehicles naturally
+                        spf_values[spf_key][dir_key]["numofcar"] = random.randint(0, remaining_vehicles)
+                        remaining_vehicles -= spf_values[spf_key][dir_key]["numofcar"]
 
                 total_vehicles = 0
                 dir_vehicles = {"LEFT": 0, "RIGHT": 0, "UP": 0, "DOWN": 0}
@@ -215,6 +222,7 @@ def get_spf():
         spf_data = {
             "id": spf_key,
             "radius": spf_value["radius"],
+            "congestion": spf_value["congestion"],
             "LEFT": spf_value["LEFT"],
             "RIGHT": spf_value["RIGHT"],
             "UP": spf_value["UP"],
