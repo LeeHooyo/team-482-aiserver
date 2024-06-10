@@ -68,13 +68,16 @@ accident_videos = {
     "crash4.mp4": "CAR_TO_HUMAN"
 }
 
-model_path = "yolov8l.pt"
+# 모델 파일 경로
+model_path = 'yolov8l.pt'
 
+# Safety Performance Function (SPF)
 def calculate_spf(aadt):
     A = 0.001
     B = 0.5
     return A * (aadt ** B)
 
+# SPF 값을 0에서 50 사이로 변환하는 함수
 def normalize_spf(spf_value, spf_min=0, spf_max=calculate_spf(50 * 86400), target_min=0, target_max=50):
     if spf_max == spf_min:
         return target_min
@@ -171,24 +174,35 @@ def process_video(video_name, spf_key):
 
             current_time = time.time()
             if current_time - start_time >= 5:  # 5초마다 한번씩 SPF 계산
-                total_aadt = (total_vehicles / (current_time - start_time)) * 86400  # 일일 평균 교통량 계산
-                spf_value = calculate_spf(total_aadt)
+                # 자연스러운 변화
+                for dir_key in ["LEFT", "RIGHT", "UP", "DOWN"]:
+                    if dir_vehicles[dir_key] > previous_dir_vehicles[dir_key]:
+                        dir_vehicles[dir_key] = min(dir_vehicles[dir_key], previous_dir_vehicles[dir_key] + 5)
+                    else:
+                        dir_vehicles[dir_key] = max(dir_vehicles[dir_key], previous_dir_vehicles[dir_key] - 5)
+
+                aadt = (total_vehicles / (current_time - start_time)) * 86400  # 일일 평균 교통량 계산
+                spf_value = calculate_spf(aadt)
                 normalized_spf_value = normalize_spf(spf_value, spf_min=0, spf_max=calculate_spf(50 * 86400))
                 spf_values[spf_key]["congestion"] = normalized_spf_value
 
-                # Adjust dir vehicles to ensure natural changes and distribute total vehicles
-                total_numofcar = total_vehicles
-                remaining_vehicles = total_numofcar
-                dir_keys = ["LEFT", "RIGHT", "UP", "DOWN"]
-                
-                for dir_key in dir_keys:
-                    if dir_key == dir_keys[-1]:
-                        # Allocate all remaining vehicles to the last direction to ensure the sum matches total_vehicles
-                        spf_values[spf_key][dir_key]["numofcar"] = remaining_vehicles
+                # 각 방향으로 차량 수 나누기
+                total_num_of_cars = total_vehicles
+                dir_vehicles_list = list(dir_vehicles.keys())
+                random.shuffle(dir_vehicles_list)
+
+                remaining_cars = total_num_of_cars
+                for i, dir_key in enumerate(dir_vehicles_list):
+                    if i == len(dir_vehicles_list) - 1:
+                        dir_vehicles[dir_key] = remaining_cars
                     else:
-                        # Distribute vehicles naturally
-                        spf_values[spf_key][dir_key]["numofcar"] = random.randint(0, remaining_vehicles)
-                        remaining_vehicles -= spf_values[spf_key][dir_key]["numofcar"]
+                        allocated_cars = random.randint(0, remaining_cars)
+                        dir_vehicles[dir_key] = allocated_cars
+                        remaining_cars -= allocated_cars
+
+                for dir_key in dir_vehicles:
+                    spf_values[spf_key][dir_key]["numofcar"] = dir_vehicles[dir_key]
+                    previous_dir_vehicles[dir_key] = dir_vehicles[dir_key]
 
                 total_vehicles = 0
                 dir_vehicles = {"LEFT": 0, "RIGHT": 0, "UP": 0, "DOWN": 0}
