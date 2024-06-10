@@ -68,7 +68,6 @@ accident_videos = {
     "crash4.mp4": "CAR_TO_HUMAN"
 }
 
-# 모델 파일 경로
 model_path = 'yolov8l.pt'
 
 # Safety Performance Function (SPF)
@@ -192,13 +191,12 @@ def process_video(video_name, spf_key):
                 random.shuffle(dir_vehicles_list)
 
                 remaining_cars = total_num_of_cars
-                for i, dir_key in enumerate(dir_vehicles_list):
-                    if i == len(dir_vehicles_list) - 1:
-                        dir_vehicles[dir_key] = remaining_cars
-                    else:
-                        allocated_cars = random.randint(0, remaining_cars)
-                        dir_vehicles[dir_key] = allocated_cars
-                        remaining_cars -= allocated_cars
+                for dir_key in dir_vehicles_list[:-1]:
+                    allocated_cars = random.randint(0, remaining_cars)
+                    dir_vehicles[dir_key] = allocated_cars
+                    remaining_cars -= allocated_cars
+
+                dir_vehicles[dir_vehicles_list[-1]] = remaining_cars
 
                 for dir_key in dir_vehicles:
                     spf_values[spf_key][dir_key]["numofcar"] = dir_vehicles[dir_key]
