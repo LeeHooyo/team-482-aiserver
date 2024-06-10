@@ -64,7 +64,7 @@ accident_videos = {
 }
 
 # 모델 파일 경로
-model_path = 'yolov8m.pt'
+model_path = 'yolov8l.pt'
 
 # Safety Performance Function (SPF)
 def calculate_spf(aadt):
