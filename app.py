@@ -91,7 +91,7 @@ def download_video_from_s3(video_key):
 
 def process_video(video_key, spf_key):
     local_video_path = download_video_from_s3(video_key)
-    model = YOLO("yolov8l.pt")
+    model = YOLO("yolov8m.pt")
 
     while True:  # 무한 루프를 통해 영상 반복 재생
         cap = cv2.VideoCapture(local_video_path)
