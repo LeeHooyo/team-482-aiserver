@@ -11,10 +11,6 @@ import boto3
 
 app = Flask(__name__)
 
-# S3 클라이언트 생성
-s3_client = boto3.client('s3')
-BUCKET_NAME = 'team486-cctvvideo'
-
 spf_values = {
     "spfA": {
         "radius": 0.2,
@@ -67,6 +63,9 @@ accident_videos = {
     "crash4.mp4": "CAR_TO_HUMAN"
 }
 
+# 모델 파일 경로
+model_path = 'yolov8m.pt'
+
 # Safety Performance Function (SPF)
 def calculate_spf(aadt):
     A = 0.001
@@ -84,14 +83,9 @@ def reset_accident_flags(spf_key, dir_key):
     spf_values[spf_key][dir_key]["isAccident"] = False
     spf_values[spf_key][dir_key]["accidentType"] = None
 
-def download_video_from_s3(video_key):
-    local_path = f"/tmp/{os.path.basename(video_key)}"
-    s3_client.download_file(BUCKET_NAME, video_key, local_path)
-    return local_path
-
-def process_video(video_key, spf_key):
-    local_video_path = download_video_from_s3(video_key)
-    model = YOLO("yolov8m.pt")
+def process_video(video_name, spf_key):
+    local_video_path = video_name
+    model = YOLO(model_path)
 
     while True:  # 무한 루프를 통해 영상 반복 재생
         cap = cv2.VideoCapture(local_video_path)
@@ -126,7 +120,7 @@ def process_video(video_key, spf_key):
                 spf_values[spf_key][dir_key]["accidentType"] = accident_type
 
                 cap.release()
-                accident_cap = cv2.VideoCapture(os.path.join(os.getcwd(), accident_video))
+                accident_cap = cv2.VideoCapture(accident_video)
                 while accident_cap.isOpened():
                     ret, accident_frame = accident_cap.read()
                     if not ret:
@@ -197,10 +191,7 @@ def process_video(video_key, spf_key):
 
 @app.route('/process_videos', methods=['POST'])
 def process_videos():
-    video_keys = request.json.get('video_keys')  # S3 비디오 파일 키 목록
-    if not video_keys:
-        return jsonify({"error": "No video keys provided"}), 400
-
+    video_keys = request.json.get('video_keys')  # 로컬 비디오 파일 키 목록
     video_keys_map = ['spfA', 'spfB', 'spfC', 'spfD', 'spfE', 'spfF']
 
     with ThreadPoolExecutor(max_workers=len(video_keys)) as executor:
