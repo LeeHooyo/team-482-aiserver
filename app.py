@@ -7,56 +7,57 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import random
 from threading import Timer
-import boto3
 
 app = Flask(__name__)
-
-# S3 클라이언트 생성
-s3_client = boto3.client('s3')
-BUCKET_NAME = 'team486-cctvvideo'
 
 spf_values = {
     "spfA": {
         "radius": 0.2,
-        "LEFT": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "RIGHT": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "UP": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "DOWN": {"congestion": 0, "isAccident": False, "accidentType": None}
+        "congestion": 0,
+        "LEFT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "RIGHT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "UP": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "DOWN": {"numofcar": 0, "isAccident": False, "accidentType": None}
     },
     "spfB": {
         "radius": 0.2,
-        "LEFT": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "RIGHT": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "UP": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "DOWN": {"congestion": 0, "isAccident": False, "accidentType": None}
+        "congestion": 0,
+        "LEFT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "RIGHT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "UP": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "DOWN": {"numofcar": 0, "isAccident": False, "accidentType": None}
     },
     "spfC": {
         "radius": 0.2,
-        "LEFT": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "RIGHT": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "UP": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "DOWN": {"congestion": 0, "isAccident": False, "accidentType": None}
+        "congestion": 0,
+        "LEFT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "RIGHT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "UP": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "DOWN": {"numofcar": 0, "isAccident": False, "accidentType": None}
     },
     "spfD": {
         "radius": 0.2,
-        "LEFT": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "RIGHT": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "UP": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "DOWN": {"congestion": 0, "isAccident": False, "accidentType": None}
+        "congestion": 0,
+        "LEFT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "RIGHT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "UP": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "DOWN": {"numofcar": 0, "isAccident": False, "accidentType": None}
     },
     "spfE": {
         "radius": 0.2,
-        "LEFT": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "RIGHT": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "UP": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "DOWN": {"congestion": 0, "isAccident": False, "accidentType": None}
+        "congestion": 0,
+        "LEFT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "RIGHT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "UP": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "DOWN": {"numofcar": 0, "isAccident": False, "accidentType": None}
     },
     "spfF": {
         "radius": 0.2,
-        "LEFT": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "RIGHT": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "UP": {"congestion": 0, "isAccident": False, "accidentType": None},
-        "DOWN": {"congestion": 0, "isAccident": False, "accidentType": None}
+        "congestion": 0,
+        "LEFT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "RIGHT": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "UP": {"numofcar": 0, "isAccident": False, "accidentType": None},
+        "DOWN": {"numofcar": 0, "isAccident": False, "accidentType": None}
     }
 }
 
@@ -66,6 +67,9 @@ accident_videos = {
     "crash3.mp4": "CAR_TO_HUMAN",
     "crash4.mp4": "CAR_TO_HUMAN"
 }
+
+# 모델 파일 경로
+model_path = 'yolov8l.pt'
 
 # Safety Performance Function (SPF)
 def calculate_spf(aadt):
@@ -84,14 +88,9 @@ def reset_accident_flags(spf_key, dir_key):
     spf_values[spf_key][dir_key]["isAccident"] = False
     spf_values[spf_key][dir_key]["accidentType"] = None
 
-def download_video_from_s3(video_key):
-    local_path = f"/tmp/{os.path.basename(video_key)}"
-    s3_client.download_file(BUCKET_NAME, video_key, local_path)
-    return local_path
-
-def process_video(video_key, spf_key):
-    local_video_path = download_video_from_s3(video_key)
-    model = YOLO("yolov8m.pt")
+def process_video(video_name, spf_key):
+    local_video_path = video_name
+    model = YOLO(model_path)
 
     while True:  # 무한 루프를 통해 영상 반복 재생
         cap = cv2.VideoCapture(local_video_path)
@@ -126,7 +125,7 @@ def process_video(video_key, spf_key):
                 spf_values[spf_key][dir_key]["accidentType"] = accident_type
 
                 cap.release()
-                accident_cap = cv2.VideoCapture(os.path.join(os.getcwd(), accident_video))
+                accident_cap = cv2.VideoCapture(accident_video)
                 while accident_cap.isOpened():
                     ret, accident_frame = accident_cap.read()
                     if not ret:
@@ -175,18 +174,34 @@ def process_video(video_key, spf_key):
 
             current_time = time.time()
             if current_time - start_time >= 5:  # 5초마다 한번씩 SPF 계산
+                # 자연스러운 변화
                 for dir_key in ["LEFT", "RIGHT", "UP", "DOWN"]:
-                    # Adjust dir vehicles to ensure natural changes
                     if dir_vehicles[dir_key] > previous_dir_vehicles[dir_key]:
-                        dir_vehicles[dir_key] = min(dir_vehicles[dir_key], previous_dir_vehicles[dir_key] + 5)  # limit increase to 5
+                        dir_vehicles[dir_key] = min(dir_vehicles[dir_key], previous_dir_vehicles[dir_key] + 5)
                     else:
-                        dir_vehicles[dir_key] = max(dir_vehicles[dir_key], previous_dir_vehicles[dir_key] - 5)  # limit decrease to 5
+                        dir_vehicles[dir_key] = max(dir_vehicles[dir_key], previous_dir_vehicles[dir_key] - 5)
 
-                    aadt = (total_vehicles / (current_time - start_time)) * 86400  # 일일 평균 교통량 계산
-                    spf_value = calculate_spf(aadt)
-                    normalized_spf_value = normalize_spf(spf_value, spf_min=0, spf_max=calculate_spf(50 * 86400))
-                    spf_values[spf_key][dir_key]["congestion"] = normalized_spf_value
+                aadt = (total_vehicles / (current_time - start_time)) * 86400  # 일일 평균 교통량 계산
+                spf_value = calculate_spf(aadt)
+                normalized_spf_value = normalize_spf(spf_value, spf_min=0, spf_max=calculate_spf(50 * 86400))
+                spf_values[spf_key]["congestion"] = normalized_spf_value
 
+                # 각 방향으로 차량 수 나누기
+                total_num_of_cars = total_vehicles
+                dir_vehicles_list = list(dir_vehicles.keys())
+                random.shuffle(dir_vehicles_list)
+
+                remaining_cars = total_num_of_cars
+                for i, dir_key in enumerate(dir_vehicles_list):
+                    if i == len(dir_vehicles_list) - 1:
+                        dir_vehicles[dir_key] = remaining_cars
+                    else:
+                        allocated_cars = random.randint(0, remaining_cars)
+                        dir_vehicles[dir_key] = allocated_cars
+                        remaining_cars -= allocated_cars
+
+                for dir_key in dir_vehicles:
+                    spf_values[spf_key][dir_key]["numofcar"] = dir_vehicles[dir_key]
                     previous_dir_vehicles[dir_key] = dir_vehicles[dir_key]
 
                 total_vehicles = 0
@@ -197,10 +212,7 @@ def process_video(video_key, spf_key):
 
 @app.route('/process_videos', methods=['POST'])
 def process_videos():
-    video_keys = request.json.get('video_keys')  # S3 비디오 파일 키 목록
-    if not video_keys:
-        return jsonify({"error": "No video keys provided"}), 400
-
+    video_keys = request.json.get('video_keys')  # 로컬 비디오 파일 키 목록
     video_keys_map = ['spfA', 'spfB', 'spfC', 'spfD', 'spfE', 'spfF']
 
     with ThreadPoolExecutor(max_workers=len(video_keys)) as executor:
@@ -224,6 +236,7 @@ def get_spf():
         spf_data = {
             "id": spf_key,
             "radius": spf_value["radius"],
+            "congestion": spf_value["congestion"],
             "LEFT": spf_value["LEFT"],
             "RIGHT": spf_value["RIGHT"],
             "UP": spf_value["UP"],
@@ -233,4 +246,4 @@ def get_spf():
     return jsonify(data)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000, debug=True)
