@@ -8,15 +8,17 @@ import os
 import random
 from threading import Timer
 
+from deep_sort_realtime.deepsort_tracker import DeepSort
+
 app = Flask(__name__)
 
 spf_values = {
-    "spfA": {"radius": 0.2, "congestion": 0, "isAccident": False, "accidentType": None},
-    "spfB": {"radius": 0.2, "congestion": 0, "isAccident": False, "accidentType": None},
-    "spfC": {"radius": 0.2, "congestion": 0, "isAccident": False, "accidentType": None},
-    "spfD": {"radius": 0.2, "congestion": 0, "isAccident": False, "accidentType": None},
-    "spfE": {"radius": 0.2, "congestion": 0, "isAccident": False, "accidentType": None},
-    "spfF": {"radius": 0.2, "congestion": 0, "isAccident": False, "accidentType": None},
+    "spfA": {"radius": 0.2, "congestion": 0, "isAccident": False, "accidentType": None, "numOfcar": 0},
+    "spfB": {"radius": 0.2, "congestion": 0, "isAccident": False, "accidentType": None, "numOfcar": 0},
+    "spfC": {"radius": 0.2, "congestion": 0, "isAccident": False, "accidentType": None, "numOfcar": 0},
+    "spfD": {"radius": 0.2, "congestion": 0, "isAccident": False, "accidentType": None, "numOfcar": 0},
+    "spfE": {"radius": 0.2, "congestion": 0, "isAccident": False, "accidentType": None, "numOfcar": 0},
+    "spfF": {"radius": 0.2, "congestion": 0, "isAccident": False, "accidentType": None, "numOfcar": 0},
 }
 
 accident_videos = {
@@ -27,6 +29,7 @@ accident_videos = {
 }
 
 model_path = "yolov8l.pt"
+tracker = DeepSort(max_age=30, n_init=3, nms_max_overlap=1.0, max_cosine_distance=0.7)
 
 # Safety Performance Function (SPF)
 def calculate_spf(aadt):
@@ -57,6 +60,7 @@ def process_video(video_name, spf_key):
         target_classes = ["car", "truck", "bicycle", "motorcycle", "bus"]
 
         total_vehicles = 0
+        tracked_vehicles = set()
         start_time = time.time()
         current_frame = 0
 
@@ -97,7 +101,7 @@ def process_video(video_name, spf_key):
 
             if not accident_occurred:
                 results = model(frame)
-                current_frame_vehicles = set()
+                detections = []
                 for result in results:
                     boxes = result.boxes.xyxy.cpu().numpy()
                     class_ids_detected = result.boxes.cls.cpu().numpy()
@@ -105,10 +109,16 @@ def process_video(video_name, spf_key):
                         class_id = int(class_ids_detected[i])
                         class_name = model.names[class_id]
                         if class_name in target_classes:
-                            vehicle_id = (box[0], box[1], box[2], box[3])  # 차량의 위치로 고유 ID 생성
-                            if vehicle_id not in current_frame_vehicles:
-                                current_frame_vehicles.add(vehicle_id)
-                                total_vehicles += 1
+                            detections.append((box, class_id))
+
+                tracks = tracker.update_tracks(detections, frame=frame)
+                for track in tracks:
+                    if not track.is_confirmed():
+                        continue
+                    track_id = track.track_id
+                    if track_id not in tracked_vehicles:
+                        tracked_vehicles.add(track_id)
+                        total_vehicles += 1
 
             current_frame += 1
 
@@ -118,8 +128,10 @@ def process_video(video_name, spf_key):
                 spf_value = calculate_spf(aadt)
                 normalized_spf_value = normalize_spf(spf_value, spf_min=0, spf_max=calculate_spf(50 * 86400))
                 spf_values[spf_key]["congestion"] = normalized_spf_value
+                spf_values[spf_key]["numOfcar"] = len(tracked_vehicles)
 
                 total_vehicles = 0
+                tracked_vehicles = set()
                 start_time = current_time
 
         cap.release()
@@ -152,7 +164,8 @@ def get_spf():
             "radius": spf_value["radius"],
             "congestion": spf_value["congestion"],
             "isAccident": spf_value["isAccident"],
-            "accidentType": spf_value["accidentType"]
+            "accidentType": spf_value["accidentType"],
+            "numOfcar": spf_value["numOfcar"]
         }
         data.append(spf_data)
     return jsonify(data)
