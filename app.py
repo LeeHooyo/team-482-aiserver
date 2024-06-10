@@ -5,6 +5,7 @@ from flask import Flask, jsonify, request
 from ultralytics import YOLO
 from threading import Timer
 from deep_sort_realtime.deepsort_tracker import DeepSort
+import random  # random 모듈 임포트
 
 app = Flask(__name__)
 
