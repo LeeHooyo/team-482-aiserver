@@ -71,7 +71,7 @@ def process_video(video_name, spf_key):
             break
 
         frame_height, frame_width = frame.shape[:2]
-        
+
         if accident_start_frame and current_frame == accident_start_frame:
             accident_occurred = True
             accident_type = accident_videos[accident_video]
