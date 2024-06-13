@@ -3,18 +3,9 @@ import numpy as np
 import time
 from flask import Flask, jsonify, request
 from ultralytics import YOLO
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import os
-import random
-from threading import Timer
-import numpy as np
-import time
-from flask import Flask, jsonify, request
-from ultralytics import YOLO
 from threading import Timer
 from deep_sort_realtime.deepsort_tracker import DeepSort
 import random
-
 app = Flask(__name__)
 
 spf_values = {
