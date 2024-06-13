@@ -4,9 +4,9 @@ import time
 from flask import Flask, jsonify, request
 from ultralytics import YOLO
 from threading import Timer
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from deep_sort_realtime.deepsort_tracker import DeepSort
 import random
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 app = Flask(__name__)
 
@@ -56,7 +56,6 @@ def process_video(video_name, spf_key):
     target_classes = ["car", "truck", "bicycle", "motorcycle", "bus"]
 
     total_vehicles = 0
-    previous_dir_vehicles = {"LEFT": 0, "RIGHT": 0, "UP": 0, "DOWN": 0}
     tracked_vehicles = set()
     start_time = time.time()
     current_frame = 0
@@ -120,16 +119,18 @@ def process_video(video_name, spf_key):
                     tracked_vehicles.add(track_id)
                     total_vehicles += 1
 
-            # 총 차량 수를 네 방향으로 랜덤하게 나누기
+            # 총 차량 수를 네 방향으로 무작위로 나누기
+            dir_vehicles = {"LEFT": 0, "RIGHT": 0, "UP": 0, "DOWN": 0}
             remaining_vehicles = total_vehicles
-            directions = ["LEFT", "RIGHT", "UP", "DOWN"]
-            random.shuffle(directions)
-            for direction in directions:
-                if direction == directions[-1]:
-                    spf_values[spf_key][direction]["numOfcar"] = remaining_vehicles
+            for direction in ["LEFT", "RIGHT", "UP", "DOWN"]:
+                if direction != "DOWN":
+                    dir_vehicles[direction] = random.randint(0, remaining_vehicles)
+                    remaining_vehicles -= dir_vehicles[direction]
                 else:
-                    spf_values[spf_key][direction]["numOfcar"] = random.randint(0, remaining_vehicles)
-                    remaining_vehicles -= spf_values[spf_key][direction]["numOfcar"]
+                    dir_vehicles[direction] = remaining_vehicles
+
+            for direction in ["LEFT", "RIGHT", "UP", "DOWN"]:
+                spf_values[spf_key][direction]["numOfcar"] = dir_vehicles[direction]
 
         current_frame += 1
 
