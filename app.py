@@ -46,14 +46,6 @@ def reset_accident_flags(spf_key, direction):
     spf_values[spf_key][direction]["isAccident"] = False
     spf_values[spf_key][direction]["accidentType"] = None
 
-def distribute_cars_evenly(total_vehicles):
-    dirs = ["LEFT", "RIGHT", "UP", "DOWN"]
-    num_cars = {d: total_vehicles // 4 for d in dirs}
-    remainder = total_vehicles % 4
-    for i in range(remainder):
-        num_cars[dirs[i]] += 1
-    return num_cars
-
 def process_video(video_name, spf_key):
     local_video_path = video_name
     model = YOLO(model_path)
@@ -64,6 +56,8 @@ def process_video(video_name, spf_key):
     target_classes = ["car", "truck", "bicycle", "motorcycle", "bus"]
 
     total_vehicles = 0
+    previous_dir_vehicles = {"LEFT": 0, "RIGHT": 0, "UP": 0, "DOWN": 0}
+    tracked_vehicles = set()
     start_time = time.time()
     current_frame = 0
 
@@ -118,12 +112,24 @@ def process_video(video_name, spf_key):
                         detections.append((box, class_id))
 
             tracks = tracker.update_tracks(detections, frame=frame)
-            total_vehicles = len(tracks)
+            for track in tracks:
+                if not track.is_confirmed():
+                    continue
+                track_id = track.track_id
+                if track_id not in tracked_vehicles:
+                    tracked_vehicles.add(track_id)
+                    total_vehicles += 1
 
-            # 총 차량 수를 네 방향으로 나누기
-            dir_vehicles = distribute_cars_evenly(total_vehicles)
-            for direction in ["LEFT", "RIGHT", "UP", "DOWN"]:
-                spf_values[spf_key][direction]["numOfcar"] = dir_vehicles[direction]
+            # 총 차량 수를 네 방향으로 랜덤하게 나누기
+            remaining_vehicles = total_vehicles
+            directions = ["LEFT", "RIGHT", "UP", "DOWN"]
+            random.shuffle(directions)
+            for direction in directions:
+                if direction == directions[-1]:
+                    spf_values[spf_key][direction]["numOfcar"] = remaining_vehicles
+                else:
+                    spf_values[spf_key][direction]["numOfcar"] = random.randint(0, remaining_vehicles)
+                    remaining_vehicles -= spf_values[spf_key][direction]["numOfcar"]
 
         current_frame += 1
 
