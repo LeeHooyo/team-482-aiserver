@@ -46,6 +46,14 @@ def reset_accident_flags(spf_key, direction):
     spf_values[spf_key][direction]["isAccident"] = False
     spf_values[spf_key][direction]["accidentType"] = None
 
+def distribute_cars_evenly(total_vehicles):
+    dirs = ["LEFT", "RIGHT", "UP", "DOWN"]
+    num_cars = {d: total_vehicles // 4 for d in dirs}
+    remainder = total_vehicles % 4
+    for i in range(remainder):
+        num_cars[dirs[i]] += 1
+    return num_cars
+
 def process_video(video_name, spf_key):
     local_video_path = video_name
     model = YOLO(model_path)
@@ -56,8 +64,6 @@ def process_video(video_name, spf_key):
     target_classes = ["car", "truck", "bicycle", "motorcycle", "bus"]
 
     total_vehicles = 0
-    previous_dir_vehicles = {"LEFT": 0, "RIGHT": 0, "UP": 0, "DOWN": 0}
-    tracked_vehicles = set()
     start_time = time.time()
     current_frame = 0
 
@@ -112,18 +118,10 @@ def process_video(video_name, spf_key):
                         detections.append((box, class_id))
 
             tracks = tracker.update_tracks(detections, frame=frame)
-            for track in tracks:
-                if not track.is_confirmed():
-                    continue
-                track_id = track.track_id
-                if track_id not in tracked_vehicles:
-                    tracked_vehicles.add(track_id)
-                    total_vehicles += 1
+            total_vehicles = len(tracks)
 
-            # 총 차량 수를 네 방향으로 단순히 나누기
-            dir_vehicles = {"LEFT": total_vehicles // 4, "RIGHT": total_vehicles // 4, "UP": total_vehicles // 4, "DOWN": total_vehicles - 3 * (total_vehicles // 4)}
-
-            # 각 방향의 numOfcar 업데이트
+            # 총 차량 수를 네 방향으로 나누기
+            dir_vehicles = distribute_cars_evenly(total_vehicles)
             for direction in ["LEFT", "RIGHT", "UP", "DOWN"]:
                 spf_values[spf_key][direction]["numOfcar"] = dir_vehicles[direction]
 
