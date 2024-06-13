@@ -71,7 +71,7 @@ def process_video(video_name, spf_key):
             break
 
         frame_height, frame_width = frame.shape[:2]
-
+        
         if accident_start_frame and current_frame == accident_start_frame:
             accident_occurred = True
             accident_type = accident_videos[accident_video]
@@ -139,8 +139,6 @@ def process_video(video_name, spf_key):
                     )
                 previous_dir_vehicles[direction] = spf_values[spf_key][direction]["numOfcar"]
 
-        current_frame += 1
-
         current_time = time.time()
         if current_time - start_time >= 5:  # 5초마다 한번씩 SPF 계산
             aadt = (total_vehicles / (current_time - start_time)) * 86400  # 일일 평균 교통량 계산
@@ -149,6 +147,7 @@ def process_video(video_name, spf_key):
             spf_values[spf_key]["congestion"] = normalized_spf_value
 
             total_vehicles = 0
+            tracked_vehicles.clear()
             start_time = current_time
 
     cap.release()
