@@ -3,9 +3,9 @@ import numpy as np
 import time
 from flask import Flask, jsonify, request
 from ultralytics import YOLO
-from threading import Timer
-from deep_sort_realtime.deepsort_tracker import DeepSort
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from deep_sort_realtime.deepsort_tracker import DeepSort
+from threading import Timer
 import random
 
 app = Flask(__name__)
@@ -23,19 +23,17 @@ accident_videos = {
     "crash1.mp4": "CAR_TO_CAR",
     "crash2.mp4": "CAR_TO_CAR",
     "crash3.mp4": "CAR_TO_HUMAN",
-    "crash4.mp4": "CAR_TO_HUMAN",
+    "crash4.mp4": "CAR_TO_HUMAN"
 }
 
 model_path = "yolov8l.pt"
 tracker = DeepSort(max_age=30, n_init=3, nms_max_overlap=1.0, max_cosine_distance=0.7)
 
-# Safety Performance Function (SPF)
 def calculate_spf(aadt):
     A = 0.001
     B = 0.5
     return A * (aadt ** B)
 
-# SPF 값을 0에서 50 사이로 변환하는 함수
 def normalize_spf(spf_value, spf_min=0, spf_max=calculate_spf(50 * 86400), target_min=0, target_max=50):
     if spf_max == spf_min:
         return target_min
@@ -150,6 +148,7 @@ def process_video(video_name, spf_key):
             spf_values[spf_key]["congestion"] = normalized_spf_value
 
             total_vehicles = 0
+            tracked_vehicles = set()
             start_time = current_time
 
     cap.release()
