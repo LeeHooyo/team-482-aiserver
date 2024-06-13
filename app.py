@@ -6,7 +6,7 @@ from ultralytics import YOLO
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import random
-from threading import Timerimport cv2
+from threading import Timer
 import numpy as np
 import time
 from flask import Flask, jsonify, request
