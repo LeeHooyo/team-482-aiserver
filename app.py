@@ -5,6 +5,7 @@ from flask import Flask, jsonify, request
 from ultralytics import YOLO
 from threading import Timer
 from deep_sort_realtime.deepsort_tracker import DeepSort
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import random
 
 app = Flask(__name__)
@@ -139,6 +140,8 @@ def process_video(video_name, spf_key):
                     )
                 previous_dir_vehicles[direction] = spf_values[spf_key][direction]["numOfcar"]
 
+        current_frame += 1
+
         current_time = time.time()
         if current_time - start_time >= 5:  # 5초마다 한번씩 SPF 계산
             aadt = (total_vehicles / (current_time - start_time)) * 86400  # 일일 평균 교통량 계산
@@ -147,7 +150,6 @@ def process_video(video_name, spf_key):
             spf_values[spf_key]["congestion"] = normalized_spf_value
 
             total_vehicles = 0
-            tracked_vehicles.clear()
             start_time = current_time
 
     cap.release()
@@ -157,8 +159,17 @@ def process_videos():
     video_keys = request.json.get('video_keys')  # 로컬 비디오 파일 키 목록
     video_keys_map = ['spfA', 'spfB', 'spfC', 'spfD', 'spfE', 'spfF']
 
-    for idx, video_key in enumerate(video_keys):
-        process_video(video_key, video_keys_map[idx])
+    with ThreadPoolExecutor(max_workers=len(video_keys)) as executor:
+        future_to_video = {
+            executor.submit(process_video, video_key, video_keys_map[idx]): video_keys_map[idx]
+            for idx, video_key in enumerate(video_keys)
+        }
+        for future in as_completed(future_to_video):
+            video_key = future_to_video[future]
+            try:
+                future.result()
+            except Exception as exc:
+                return jsonify({"error": f"Video {video_key} generated an exception: {exc}"}), 500
 
     return jsonify({"status": "Videos are being processed"})
 
