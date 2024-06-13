@@ -4,8 +4,8 @@ import time
 from flask import Flask, jsonify, request
 from ultralytics import YOLO
 from threading import Timer
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from deep_sort_realtime.deepsort_tracker import DeepSort
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import random
 
 app = Flask(__name__)
@@ -49,43 +49,61 @@ def reset_accident_flags(spf_key, direction):
 def process_video(video_name, spf_key):
     local_video_path = video_name
     model = YOLO(model_path)
-    cap = cv2.VideoCapture(local_video_path)
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    fps = cap.get(cv2.CAP_PROP_FPS)
 
-    target_classes = ["car", "truck", "bicycle", "motorcycle", "bus"]
+    while True:  # 무한 루프를 통해 영상 반복 재생
+        cap = cv2.VideoCapture(local_video_path)
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        fps = cap.get(cv2.CAP_PROP_FPS)
 
-    total_vehicles = 0
-    tracked_vehicles = set()
-    start_time = time.time()
-    current_frame = 0
+        target_classes = ["car", "truck", "bicycle", "motorcycle", "bus"]
 
-    accident_occurred = False
-    accident_start_frame = random.randint(0, total_frames - 1) if random.random() < 0.5 else None
-    accident_video = random.choice(list(accident_videos.keys())) if accident_start_frame else None
+        total_vehicles = 0
+        previous_dir_vehicles = {"LEFT": 0, "RIGHT": 0, "UP": 0, "DOWN": 0}
+        tracked_vehicles = set()
+        start_time = time.time()
+        current_frame = 0
 
-    while cap.isOpened():
-        ret, frame = cap.read()
+        accident_occurred = False
+        accident_start_frame = random.randint(0, total_frames - 1) if random.random() < 0.5 else None
+        accident_video = random.choice(list(accident_videos.keys())) if accident_start_frame else None
 
-        if not ret:
-            break
+        while cap.isOpened():
+            ret, frame = cap.read()
 
-        frame_height, frame_width = frame.shape[:2]
-        
-        if accident_start_frame and current_frame == accident_start_frame:
-            accident_occurred = True
-            accident_type = accident_videos[accident_video]
-            direction = random.choice(["LEFT", "RIGHT", "UP", "DOWN"])
-            spf_values[spf_key][direction]["isAccident"] = True
-            spf_values[spf_key][direction]["accidentType"] = accident_type
+            if not ret:
+                break
 
-            cap.release()
-            accident_cap = cv2.VideoCapture(accident_video)
-            while accident_cap.isOpened():
-                ret, accident_frame = accident_cap.read()
-                if not ret:
-                    break
-                results = model(accident_frame)
+            frame_height, frame_width = frame.shape[:2]
+            
+            if accident_start_frame and current_frame == accident_start_frame:
+                accident_occurred = True
+                accident_type = accident_videos[accident_video]
+                direction = random.choice(["LEFT", "RIGHT", "UP", "DOWN"])
+                spf_values[spf_key][direction]["isAccident"] = True
+                spf_values[spf_key][direction]["accidentType"] = accident_type
+
+                cap.release()
+                accident_cap = cv2.VideoCapture(accident_video)
+                while accident_cap.isOpened():
+                    ret, accident_frame = accident_cap.read()
+                    if not ret:
+                        break
+                    results = model(accident_frame)
+                    for result in results:
+                        boxes = result.boxes.xyxy.cpu().numpy()
+                        class_ids_detected = result.boxes.cls.cpu().numpy()
+                        for i, box in enumerate(boxes):
+                            class_id = int(class_ids_detected[i])
+                            class_name = model.names[class_id]
+                            if class_name in target_classes:
+                                total_vehicles += 1
+
+                accident_cap.release()
+                Timer(180, reset_accident_flags, [spf_key, direction]).start()
+
+            if not accident_occurred:
+                results = model(frame)
+                detections = []
                 for result in results:
                     boxes = result.boxes.xyxy.cpu().numpy()
                     class_ids_detected = result.boxes.cls.cpu().numpy()
@@ -93,58 +111,43 @@ def process_video(video_name, spf_key):
                         class_id = int(class_ids_detected[i])
                         class_name = model.names[class_id]
                         if class_name in target_classes:
-                            total_vehicles += 1
+                            detections.append((box, class_id))
 
-            accident_cap.release()
-            Timer(180, reset_accident_flags, [spf_key, direction]).start()
+                tracks = tracker.update_tracks(detections, frame=frame)
+                for track in tracks:
+                    if not track.is_confirmed():
+                        continue
+                    track_id = track.track_id
+                    if track_id not in tracked_vehicles:
+                        tracked_vehicles.add(track_id)
+                        total_vehicles += 1
 
-        if not accident_occurred:
-            results = model(frame)
-            detections = []
-            for result in results:
-                boxes = result.boxes.xyxy.cpu().numpy()
-                class_ids_detected = result.boxes.cls.cpu().numpy()
-                for i, box in enumerate(boxes):
-                    class_id = int(class_ids_detected[i])
-                    class_name = model.names[class_id]
-                    if class_name in target_classes:
-                        detections.append((box, class_id))
+                # 총 차량 수를 네 방향으로 무작위로 나누기
+                dir_vehicles = {"LEFT": 0, "RIGHT": 0, "UP": 0, "DOWN": 0}
+                if total_vehicles > 0:
+                    remaining_vehicles = total_vehicles
+                    for direction in ["LEFT", "RIGHT", "UP"]:
+                        dir_vehicles[direction] = random.randint(0, remaining_vehicles)
+                        remaining_vehicles -= dir_vehicles[direction]
+                    dir_vehicles["DOWN"] = remaining_vehicles
 
-            tracks = tracker.update_tracks(detections, frame=frame)
-            for track in tracks:
-                if not track.is_confirmed():
-                    continue
-                track_id = track.track_id
-                if track_id not in tracked_vehicles:
-                    tracked_vehicles.add(track_id)
-                    total_vehicles += 1
+                # 각 방향의 차량 수 업데이트
+                for direction in ["LEFT", "RIGHT", "UP", "DOWN"]:
+                    spf_values[spf_key][direction]["numOfcar"] = dir_vehicles[direction]
 
-            # 총 차량 수를 네 방향으로 무작위로 나누기
-            dir_vehicles = {"LEFT": 0, "RIGHT": 0, "UP": 0, "DOWN": 0}
-            remaining_vehicles = total_vehicles
-            for direction in ["LEFT", "RIGHT", "UP", "DOWN"]:
-                if direction != "DOWN":
-                    dir_vehicles[direction] = random.randint(0, remaining_vehicles)
-                    remaining_vehicles -= dir_vehicles[direction]
-                else:
-                    dir_vehicles[direction] = remaining_vehicles
+            current_frame += 1
 
-            for direction in ["LEFT", "RIGHT", "UP", "DOWN"]:
-                spf_values[spf_key][direction]["numOfcar"] = dir_vehicles[direction]
+            current_time = time.time()
+            if current_time - start_time >= 5:  # 5초마다 한번씩 SPF 계산
+                aadt = (total_vehicles / (current_time - start_time)) * 86400  # 일일 평균 교통량 계산
+                spf_value = calculate_spf(aadt)
+                normalized_spf_value = normalize_spf(spf_value, spf_min=0, spf_max=calculate_spf(50 * 86400))
+                spf_values[spf_key]["congestion"] = normalized_spf_value
 
-        current_frame += 1
+                total_vehicles = 0
+                start_time = current_time
 
-        current_time = time.time()
-        if current_time - start_time >= 5:  # 5초마다 한번씩 SPF 계산
-            aadt = (total_vehicles / (current_time - start_time)) * 86400  # 일일 평균 교통량 계산
-            spf_value = calculate_spf(aadt)
-            normalized_spf_value = normalize_spf(spf_value, spf_min=0, spf_max=calculate_spf(50 * 86400))
-            spf_values[spf_key]["congestion"] = normalized_spf_value
-
-            total_vehicles = 0
-            start_time = current_time
-
-    cap.release()
+        cap.release()
 
 @app.route('/process_videos', methods=['POST'])
 def process_videos():
