@@ -10,54 +10,12 @@ import random
 app = Flask(__name__)
 
 spf_values = {
-    "spfA": {
-        "radius": 0.2,
-        "congestion": 0,
-        "LEFT": {"numOfcar": 0, "isAccident": False, "accidentType": None},
-        "RIGHT": {"numOfcar": 0, "isAccident": False, "accidentType": None},
-        "UP": {"numOfcar": 0, "isAccident": False, "accidentType": None},
-        "DOWN": {"numOfcar": 0, "isAccident": False, "accidentType": None},
-    },
-    "spfB": {
-        "radius": 0.2,
-        "congestion": 0,
-        "LEFT": {"numOfcar": 0, "isAccident": False, "accidentType": None},
-        "RIGHT": {"numOfcar": 0, "isAccident": False, "accidentType": None},
-        "UP": {"numOfcar": 0, "isAccident": False, "accidentType": None},
-        "DOWN": {"numOfcar": 0, "isAccident": False, "accidentType": None},
-    },
-    "spfC": {
-        "radius": 0.2,
-        "congestion": 0,
-        "LEFT": {"numOfcar": 0, "isAccident": False, "accidentType": None},
-        "RIGHT": {"numOfcar": 0, "isAccident": False, "accidentType": None},
-        "UP": {"numOfcar": 0, "isAccident": False, "accidentType": None},
-        "DOWN": {"numOfcar": 0, "isAccident": False, "accidentType": None},
-    },
-    "spfD": {
-        "radius": 0.2,
-        "congestion": 0,
-        "LEFT": {"numOfcar": 0, "isAccident": False, "accidentType": None},
-        "RIGHT": {"numOfcar": 0, "isAccident": False, "accidentType": None},
-        "UP": {"numOfcar": 0, "isAccident": False, "accidentType": None},
-        "DOWN": {"numOfcar": 0, "isAccident": False, "accidentType": None},
-    },
-    "spfE": {
-        "radius": 0.2,
-        "congestion": 0,
-        "LEFT": {"numOfcar": 0, "isAccident": False, "accidentType": None},
-        "RIGHT": {"numOfcar": 0, "isAccident": False, "accidentType": None},
-        "UP": {"numOfcar": 0, "isAccident": False, "accidentType": None},
-        "DOWN": {"numOfcar": 0, "isAccident": False, "accidentType": None},
-    },
-    "spfF": {
-        "radius": 0.2,
-        "congestion": 0,
-        "LEFT": {"numOfcar": 0, "isAccident": False, "accidentType": None},
-        "RIGHT": {"numOfcar": 0, "isAccident": False, "accidentType": None},
-        "UP": {"numOfcar": 0, "isAccident": False, "accidentType": None},
-        "DOWN": {"numOfcar": 0, "isAccident": False, "accidentType": None},
-    }
+    "spfA": {"radius": 0.2, "congestion": 0, "LEFT": {"numOfcar": 0, "isAccident": False, "accidentType": None}, "RIGHT": {"numOfcar": 0, "isAccident": False, "accidentType": None}, "UP": {"numOfcar": 0, "isAccident": False, "accidentType": None}, "DOWN": {"numOfcar": 0, "isAccident": False, "accidentType": None}},
+    "spfB": {"radius": 0.2, "congestion": 0, "LEFT": {"numOfcar": 0, "isAccident": False, "accidentType": None}, "RIGHT": {"numOfcar": 0, "isAccident": False, "accidentType": None}, "UP": {"numOfcar": 0, "isAccident": False, "accidentType": None}, "DOWN": {"numOfcar": 0, "isAccident": False, "accidentType": None}},
+    "spfC": {"radius": 0.2, "congestion": 0, "LEFT": {"numOfcar": 0, "isAccident": False, "accidentType": None}, "RIGHT": {"numOfcar": 0, "isAccident": False, "accidentType": None}, "UP": {"numOfcar": 0, "isAccident": False, "accidentType": None}, "DOWN": {"numOfcar": 0, "isAccident": False, "accidentType": None}},
+    "spfD": {"radius": 0.2, "congestion": 0, "LEFT": {"numOfcar": 0, "isAccident": False, "accidentType": None}, "RIGHT": {"numOfcar": 0, "isAccident": False, "accidentType": None}, "UP": {"numOfcar": 0, "isAccident": False, "accidentType": None}, "DOWN": {"numOfcar": 0, "isAccident": False, "accidentType": None}},
+    "spfE": {"radius": 0.2, "congestion": 0, "LEFT": {"numOfcar": 0, "isAccident": False, "accidentType": None}, "RIGHT": {"numOfcar": 0, "isAccident": False, "accidentType": None}, "UP": {"numOfcar": 0, "isAccident": False, "accidentType": None}, "DOWN": {"numOfcar": 0, "isAccident": False, "accidentType": None}},
+    "spfF": {"radius": 0.2, "congestion": 0, "LEFT": {"numOfcar": 0, "isAccident": False, "accidentType": None}, "RIGHT": {"numOfcar": 0, "isAccident": False, "accidentType": None}, "UP": {"numOfcar": 0, "isAccident": False, "accidentType": None}, "DOWN": {"numOfcar": 0, "isAccident": False, "accidentType": None}}
 }
 
 accident_videos = {
@@ -153,7 +111,6 @@ def process_video(video_name, spf_key):
                         detections.append((box, class_id))
 
             tracks = tracker.update_tracks(detections, frame=frame)
-            dir_vehicles = {"LEFT": 0, "RIGHT": 0, "UP": 0, "DOWN": 0}
             for track in tracks:
                 if not track.is_confirmed():
                     continue
@@ -163,6 +120,7 @@ def process_video(video_name, spf_key):
                     total_vehicles += 1
 
             # 총 차량 수를 네 방향으로 자연스럽게 나누기
+            dir_vehicles = {"LEFT": 0, "RIGHT": 0, "UP": 0, "DOWN": 0}
             if total_vehicles > 0:
                 dir_vehicles["LEFT"] = total_vehicles // 4
                 dir_vehicles["RIGHT"] = total_vehicles // 4
